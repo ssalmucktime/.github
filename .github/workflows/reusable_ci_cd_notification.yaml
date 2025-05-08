@@ -2,6 +2,10 @@ name: CI/CD Discord Notification
 
 on:
   workflow_call:
+    inputs:
+      workflow_run:
+        required: true
+        type: string
     secrets:
       CICD_DISCORD_WEBHOOK:
         required: true
@@ -10,6 +14,10 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
+      - name: Echo Workflow Run
+        run: |
+          echo "Workflow Run: ${{ inputs.workflow_run }}"
+
       - name: Discord Notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.CICD_DISCORD_WEBHOOK }}
