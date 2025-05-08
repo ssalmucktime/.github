@@ -1,0 +1,18 @@
+name: CI/CD Discord Notification
+
+on:
+  workflow_call:
+    secrets:
+      CICD_DISCORD_WEBHOOK:
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Discord Notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.CICD_DISCORD_WEBHOOK }}
+        uses: Ilshidur/action-discord@master
+        with:
+          args: 'discord-event-send'

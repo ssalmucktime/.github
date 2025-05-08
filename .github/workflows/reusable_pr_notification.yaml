@@ -1,0 +1,68 @@
+name: PR Discord Notification
+
+on:
+  workflow_call:
+    inputs:
+      pr_event:
+        required: true
+        type: string
+    secrets:
+      PR_DISCORD_WEBHOOK:
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parse PR Event
+        id: parse
+        run: |
+          PR_EVENT='${{ inputs.pr_event }}'
+          echo "title<<EOF" >> $GITHUB_OUTPUT
+          echo "$(echo $PR_EVENT | jq -r '.title // ""')" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "author<<EOF" >> $GITHUB_OUTPUT
+          echo "$(echo $PR_EVENT | jq -r '.user.login // ""')" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "repo_name<<EOF" >> $GITHUB_OUTPUT
+          echo "$(echo $PR_EVENT | jq -r '.base.repo.name // ""')" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "pr_number<<EOF" >> $GITHUB_OUTPUT
+          echo "$(echo $PR_EVENT | jq -r '.number // ""')" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "url<<EOF" >> $GITHUB_OUTPUT
+          echo "$(echo $PR_EVENT | jq -r '.html_url // ""')" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "avatar<<EOF" >> $GITHUB_OUTPUT
+          echo "$(echo $PR_EVENT | jq -r '.user.avatar_url // ""')" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "commits_url<<EOF" >> $GITHUB_OUTPUT
+          echo "$(echo $PR_EVENT | jq -r '.commits_url // ""')" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Get Commits
+        id: get_commits
+        run: |
+          curl -s -X GET ${{ steps.parse.outputs.commits_url }} > commits.json
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          echo "$(cat commits.json | jq -r '.[] | "> [" + .commit.message + " (" + .author.login + ")](<" + .html_url + ">)"')" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Discord Notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.PR_DISCORD_WEBHOOK }}
+          DISCORD_USERNAME: ${{ steps.parse.outputs.author }}
+          DISCORD_AVATAR: ${{ steps.parse.outputs.avatar }}
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            # 🚀 **PR : ${{ steps.parse.outputs.title }}**
+            ## **링크**: [${{ steps.parse.outputs.repo_name }} #${{ steps.parse.outputs.pr_number }}](<${{ steps.parse.outputs.url }}>)
+            ## **커밋**
+            ${{ steps.get_commits.outputs.commits }}
